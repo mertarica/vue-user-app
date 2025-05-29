@@ -1,0 +1,10 @@
+/* Remove all content and replace with: */
+/* Global styles if needed */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#app {
+  min-height: 100vh;
+}
