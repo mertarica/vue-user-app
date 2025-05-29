@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue';
+import { ref, computed } from 'vue';
 import { useUsers } from '@/composables/useUsers';
 import { useUserStore } from '@/stores/userStore';
 import UserCard from '@/components/UserCard.vue';
@@ -164,12 +164,6 @@ const {
 
 const selectedCountry = ref('');
 const selectedGender = ref('');
-
-watchEffect(() => {
-  if (users.value.length > 0) {
-    store.setUsers(users.value);
-  }
-});
 
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
