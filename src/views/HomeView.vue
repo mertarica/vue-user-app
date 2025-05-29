@@ -26,7 +26,6 @@
       :countries="uniqueCountries"
     />
 
-    <!-- Content with clear loading states -->
     <Transition name="fade" mode="out-in">
       <!-- Initial Loading -->
       <div v-if="isLoading" key="loading" class="loading-state">
@@ -86,7 +85,9 @@
             v-for="user in filteredUsers"
             :key="user.id"
             :user="user"
+            :is-favorite="favoriteIds.has(user.id)"
             @select="goToDetails"
+            @toggle-favorite="handleToggleFavorite"
           />
         </TransitionGroup>
 
@@ -97,7 +98,7 @@
             class="flex justify-center mt-8"
           >
             <button
-              @click="loadMore"
+              @click="() => loadMore()"
               :disabled="isLoadingMore"
               class="load-more-btn"
             >
@@ -177,6 +178,8 @@ const filteredUsers = computed(() => {
   });
 });
 
+const favoriteIds = computed(() => store.favoriteUserIds);
+
 const uniqueCountries = computed(() => {
   const countries = users.value.map((u) => u.country);
   return [...new Set(countries)].sort();
@@ -191,8 +194,12 @@ async function handleReset() {
 }
 
 function goToDetails(user: User) {
-  store.selectUser(user);
+  store.selectUser(user.id);
   router.push(`/user/${user.id}`);
+}
+
+function handleToggleFavorite(userId: string) {
+  store.toggleFavorite(userId);
 }
 
 function clearFilters() {

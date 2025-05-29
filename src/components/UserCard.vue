@@ -79,25 +79,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useUserStore } from '@/stores/userStore';
 import type { User } from '@/types/User';
 
-const props = defineProps<{ user: User }>();
-
-const emit = defineEmits<{
-  (e: 'select', user: User): void;
+const props = defineProps<{
+  user: User;
+  isFavorite?: boolean;
 }>();
 
-const store = useUserStore();
-
-const isFavorite = computed(() => store.isFavorite(props.user.id));
+const emit = defineEmits<{
+  select: [user: User];
+  toggleFavorite: [userId: string];
+}>();
 
 function handleClick() {
   emit('select', props.user);
 }
 
 function toggleFavorite() {
-  store.toggleFavorite(props.user);
+  emit('toggleFavorite', props.user.id);
 }
 </script>

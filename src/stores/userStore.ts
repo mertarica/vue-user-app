@@ -1,48 +1,43 @@
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref } from 'vue';
 import type { User } from '@/types/User';
 
 export const useUserStore = defineStore('user', () => {
-  const allUsers = shallowRef<User[]>([]);
-  const selectedUser = ref<User | null>(null);
-  const favoriteUsers = ref<User[]>([]);
+  const selectedUserId = ref<string | null>(null);
+  const favoriteUserIds = ref<Set<string>>(new Set());
 
-  function setUsers(users: User[]) {
-    allUsers.value = users;
+  function getSelectedUser(users: User[]): User | null {
+    return users.find((u) => u.id === selectedUserId.value) || null;
   }
 
-  function selectUser(user: User) {
-    selectedUser.value = user;
+  function getFavoriteUsers(users: User[]): User[] {
+    return users.filter((u) => favoriteUserIds.value.has(u.id));
   }
-
-  function toggleFavorite(user: User) {
-    const exists = favoriteUsers.value.find((u) => u.id === user.id);
-    if (exists) {
-      favoriteUsers.value = favoriteUsers.value.filter((u) => u.id !== user.id);
-    } else {
-      favoriteUsers.value = [...favoriteUsers.value, user];
-    }
-  }
-
-  function clearFavorites() {
-    favoriteUsers.value = [];
-  }
-
-  const isFavorite = computed(() => (id: string) => {
-    return favoriteUsers.value.some((u) => u.id === id);
-  });
-
-  const favoriteCount = computed(() => favoriteUsers.value.length);
 
   return {
-    allUsers,
-    selectedUser,
-    favoriteUsers,
-    setUsers,
-    selectUser,
-    toggleFavorite,
-    clearFavorites,
-    isFavorite,
-    favoriteCount,
+    selectedUserId,
+    favoriteUserIds,
+    getSelectedUser,
+    getFavoriteUsers,
+    selectUser: (id: string) => {
+      selectedUserId.value = id;
+    },
+
+    toggleFavorite: (id: string) => {
+      if (favoriteUserIds.value.has(id)) {
+        favoriteUserIds.value.delete(id);
+      } else {
+        favoriteUserIds.value.add(id);
+      }
+      favoriteUserIds.value = new Set(favoriteUserIds.value);
+    },
+
+    clearFavorites: () => {
+      favoriteUserIds.value.clear();
+    },
+
+    isFavorite: (id: string) => favoriteUserIds.value.has(id),
+
+    favoriteCount: computed(() => favoriteUserIds.value.size),
   };
 });

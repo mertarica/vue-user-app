@@ -4,7 +4,6 @@ import type { User } from '@/types/User';
 
 const USERS_PER_PAGE = 21;
 
-// API Functions
 async function fetchUsersPage(
   page: number
 ): Promise<{ users: User[]; hasMore: boolean }> {
@@ -49,17 +48,8 @@ async function fetchUsersPage(
 
 export function useUsers() {
   const queryClient = useQueryClient();
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    refetch,
-    isRefetching,
-  } = useInfiniteQuery({
+
+  const query = useInfiniteQuery({
     queryKey: ['users'],
     queryFn: ({ pageParam = 1 }) => fetchUsersPage(pageParam),
     getNextPageParam: (lastPage, allPages) =>
@@ -69,44 +59,30 @@ export function useUsers() {
     gcTime: 10 * 60 * 1000,
   });
 
-  const users = computed(() => {
-    return data.value?.pages.flatMap((page) => page.users) ?? [];
-  });
-
-  const totalUsers = computed(() => users.value.length);
-
-  const errorMessage = computed(() => {
-    if (error.value instanceof Error) {
-      return error.value.message;
-    }
-    return error.value ? String(error.value) : null;
-  });
-
-  const actions = {
-    loadMore: async () => {
-      if (hasNextPage.value && !isFetchingNextPage.value) {
-        await fetchNextPage();
-      }
-    },
-
-    refresh: async () => {
-      await refetch();
-    },
-
-    reset: async () => {
-      await queryClient.resetQueries({ queryKey: ['users'] });
-    },
-  };
+  const users = computed(
+    () => query.data.value?.pages.flatMap((page) => page.users) ?? []
+  );
 
   return {
     users,
-    totalUsers,
-    isLoading,
-    isLoadingMore: computed(() => isFetchingNextPage.value),
-    isRefreshing: computed(() => isRefetching.value),
-    isError,
-    error: errorMessage,
-    hasMorePages: computed(() => hasNextPage.value),
-    ...actions,
+    totalUsers: computed(() => users.value.length),
+    isLoading: query.isLoading,
+    isLoadingMore: query.isFetchingNextPage,
+    isRefreshing: query.isRefetching,
+    isError: query.isError,
+    error: computed(() => {
+      const err = query.error.value;
+      if (!err) return null;
+
+      if (err.message.includes('fetch'))
+        return 'Network error. Please check your connection.';
+      if (err.message.includes('abort'))
+        return 'Request timeout. Please try again.';
+      return err.message || 'An unexpected error occurred.';
+    }),
+    hasMorePages: query.hasNextPage,
+    loadMore: query.fetchNextPage,
+    refresh: query.refetch,
+    reset: () => queryClient.resetQueries({ queryKey: ['users'] }),
   };
 }

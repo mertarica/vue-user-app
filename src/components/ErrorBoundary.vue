@@ -23,7 +23,6 @@ import { ref, onErrorCaptured } from 'vue';
 const hasError = ref(false);
 const errorMessage = ref('');
 
-// Capture errors from child components
 onErrorCaptured((err: Error, instance, info) => {
   console.error('Error captured:', err);
   console.error('Component instance:', instance);
@@ -32,13 +31,11 @@ onErrorCaptured((err: Error, instance, info) => {
   hasError.value = true;
   errorMessage.value = err.message || 'An unexpected error occurred';
 
-  // Prevent the error from propagating further
   return false;
 });
 
 function retry() {
   hasError.value = false;
   errorMessage.value = '';
-  // You could also emit an event or call a retry function
 }
 </script>

@@ -56,7 +56,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:selectedCountry', value: string): void;
   (e: 'update:selectedGender', value: string): void;
-  (e: 'clear-filters'): void;
 }>();
 
 const selectedCountry = computed({
@@ -76,6 +75,5 @@ const hasActiveFilters = computed(() => {
 function clearFilters() {
   emit('update:selectedCountry', '');
   emit('update:selectedGender', '');
-  emit('clear-filters');
 }
 </script>
