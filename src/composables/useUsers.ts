@@ -69,7 +69,6 @@ export function useUsers() {
     gcTime: 10 * 60 * 1000,
   });
 
-  // Computed properties
   const users = computed(() => {
     return data.value?.pages.flatMap((page) => page.users) ?? [];
   });
@@ -83,44 +82,31 @@ export function useUsers() {
     return error.value ? String(error.value) : null;
   });
 
-  // Simplified actions
   const actions = {
-    // Load more pages
     loadMore: async () => {
       if (hasNextPage.value && !isFetchingNextPage.value) {
         await fetchNextPage();
       }
     },
 
-    // Soft refresh - just refetch current data
     refresh: async () => {
       await refetch();
     },
 
-    // Hard refresh - clear cache and refetch
     reset: async () => {
       await queryClient.resetQueries({ queryKey: ['users'] });
     },
   };
 
   return {
-    // Data
     users,
     totalUsers,
-
-    // Loading states
     isLoading,
     isLoadingMore: computed(() => isFetchingNextPage.value),
     isRefreshing: computed(() => isRefetching.value),
-
-    // Error states
     isError,
     error: errorMessage,
-
-    // Pagination
     hasMorePages: computed(() => hasNextPage.value),
-
-    // Actions
     ...actions,
   };
 }
