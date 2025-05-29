@@ -10,6 +10,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@tanstack/vue-query": "^5.79.0",
     "pinia": "^2.1.7",
     "vue": "^3.5.13",
     "vue-router": "^4.2.5"

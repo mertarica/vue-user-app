@@ -2,7 +2,21 @@
   <div class="p-6">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-semibold">User List</h2>
-      <div class="text-sm text-gray-500">{{ totalUsers }} users loaded</div>
+      <div class="flex items-center gap-4">
+        <button
+          v-if="!isLoading"
+          @click="handleRefresh"
+          :disabled="isRefreshing"
+          class="refresh-btn"
+        >
+          <div
+            v-if="isRefreshing"
+            class="animate-spin rounded-full h-3 w-3 border-b border-gray-600"
+          />
+          <span>{{ isRefreshing ? 'Refreshing...' : 'Refresh' }}</span>
+        </button>
+        <div class="text-sm text-gray-500">{{ totalUsers }} users loaded</div>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -12,57 +26,45 @@
       :countries="uniqueCountries"
     />
 
-    <!-- Loading State with simple fade -->
+    <!-- Content with clear loading states -->
     <Transition name="fade" mode="out-in">
-      <div
-        v-if="isLoading"
-        key="loading"
-        class="flex justify-center items-center py-12"
-      >
+      <!-- Initial Loading -->
+      <div v-if="isLoading" key="loading" class="loading-state">
         <div
           class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"
-        ></div>
+        />
         <span class="ml-3 text-gray-500">Loading users...</span>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" key="error" class="text-center py-12">
+      <div v-else-if="isError" key="error" class="error-state">
         <div class="text-red-400 text-6xl mb-4">⚠️</div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">
           Failed to load users
         </h3>
         <p class="text-gray-500 mb-4">{{ error }}</p>
-        <button
-          @click="retryFetch"
-          class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Retry
-        </button>
+        <div class="flex justify-center gap-3">
+          <button @click="handleRefresh" class="btn-primary">Retry</button>
+          <button @click="handleReset" class="btn-secondary">
+            Reset & Retry
+          </button>
+        </div>
       </div>
 
-      <!-- Empty State (No filtered results) -->
+      <!-- No Results (Filtered) -->
       <div
-        v-else-if="filteredUsers.length === 0 && store.allUsers.length > 0"
+        v-else-if="filteredUsers.length === 0 && users.length > 0"
         key="no-results"
-        class="text-center py-12"
+        class="empty-state"
       >
         <div class="text-gray-400 text-6xl mb-4">🔍</div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">No users found</h3>
         <p class="text-gray-500 mb-4">No users match your current filters.</p>
-        <button
-          @click="clearFilters"
-          class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Clear Filters
-        </button>
+        <button @click="clearFilters" class="btn-primary">Clear Filters</button>
       </div>
 
-      <!-- Empty State (No users at all) -->
-      <div
-        v-else-if="!isLoading && store.allUsers.length === 0"
-        key="no-users"
-        class="text-center py-12"
-      >
+      <!-- No Users At All -->
+      <div v-else-if="users.length === 0" key="no-users" class="empty-state">
         <div class="text-gray-400 text-6xl mb-4">👤</div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">
           No users available
@@ -70,16 +72,11 @@
         <p class="text-gray-500 mb-4">
           Unable to load users. Please try again.
         </p>
-        <button
-          @click="retryFetch"
-          class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          Retry
-        </button>
+        <button @click="handleRefresh" class="btn-primary">Retry</button>
       </div>
 
+      <!-- User Grid -->
       <div v-else key="content">
-        <!-- Simple grid with subtle entrance animations -->
         <TransitionGroup
           name="card-fade"
           tag="div"
@@ -93,7 +90,7 @@
           />
         </TransitionGroup>
 
-        <!-- Clean Load More Button -->
+        <!-- Load More Button -->
         <Transition name="slide-up">
           <div
             v-if="hasMorePages && filteredUsers.length > 0"
@@ -112,8 +109,8 @@
                 >
                   <div
                     class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"
-                  ></div>
-                  <span>Loading...</span>
+                  />
+                  <span>Loading more...</span>
                 </div>
                 <span v-else key="text">Load More Users</span>
               </Transition>
@@ -121,13 +118,16 @@
           </div>
         </Transition>
 
-        <!-- Simple end message -->
+        <!-- End Message -->
         <Transition name="fade">
           <div
             v-if="!hasMorePages && filteredUsers.length > 0"
-            class="text-center mt-8 text-gray-500"
+            class="text-center mt-8"
           >
-            <p>You've reached the end! 🎉</p>
+            <div class="text-gray-500 mb-2">🎉 You've reached the end!</div>
+            <p class="text-sm text-gray-400">
+              {{ totalUsers }} users loaded total
+            </p>
           </div>
         </Transition>
       </div>
@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watchEffect } from 'vue';
 import { useUsers } from '@/composables/useUsers';
 import { useUserStore } from '@/stores/userStore';
 import UserCard from '@/components/UserCard.vue';
@@ -145,33 +145,34 @@ import { useRouter } from 'vue-router';
 import type { User } from '@/types/User';
 import { TransitionGroup, Transition } from 'vue';
 
-// Store, Router, and Data
 const store = useUserStore();
 const router = useRouter();
+
 const {
   users,
-  fetchUsers,
-  loadMoreUsers,
-  refreshUsers,
+  totalUsers,
   isLoading,
   isLoadingMore,
+  isRefreshing,
+  isError,
   error,
   hasMorePages,
-  totalUsers,
+  loadMore,
+  refresh,
+  reset,
 } = useUsers();
 
 const selectedCountry = ref('');
 const selectedGender = ref('');
 
-onMounted(async () => {
-  await fetchUsers();
-  store.setUsers(users.value);
+watchEffect(() => {
+  if (users.value.length > 0) {
+    store.setUsers(users.value);
+  }
 });
 
 const filteredUsers = computed(() => {
-  const allUsers = users.value;
-
-  return allUsers.filter((user) => {
+  return users.value.filter((user) => {
     const matchCountry = selectedCountry.value
       ? user.country === selectedCountry.value
       : true;
@@ -187,6 +188,14 @@ const uniqueCountries = computed(() => {
   return [...new Set(countries)].sort();
 });
 
+async function handleRefresh() {
+  await refresh();
+}
+
+async function handleReset() {
+  await reset();
+}
+
 function goToDetails(user: User) {
   store.selectUser(user);
   router.push(`/user/${user.id}`);
@@ -196,20 +205,27 @@ function clearFilters() {
   selectedCountry.value = '';
   selectedGender.value = '';
 }
-
-async function retryFetch() {
-  await refreshUsers();
-  store.setUsers(users.value);
-}
-
-async function loadMore() {
-  await loadMoreUsers();
-  store.setUsers(users.value);
-}
 </script>
 
 <style scoped>
-/* Simple load more button */
+.loading-state,
+.error-state,
+.empty-state {
+  @apply flex flex-col justify-center items-center py-12 text-center;
+}
+
+.refresh-btn {
+  @apply text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg transition-colors flex items-center gap-2;
+}
+
+.btn-primary {
+  @apply bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors;
+}
+
 .load-more-btn {
   @apply bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium transition-all duration-300;
 }
@@ -223,7 +239,6 @@ async function loadMore() {
   cursor: not-allowed;
 }
 
-/* Fade transition */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -234,7 +249,6 @@ async function loadMore() {
   opacity: 0;
 }
 
-/* Slide up transition */
 .slide-up-enter-active {
   transition: all 0.4s ease;
 }
@@ -244,7 +258,6 @@ async function loadMore() {
   transform: translateY(20px);
 }
 
-/* Spin fade transition */
 .spin-fade-enter-active,
 .spin-fade-leave-active {
   transition: all 0.2s ease;
@@ -256,7 +269,6 @@ async function loadMore() {
   transform: scale(0.9);
 }
 
-/* Card fade transition */
 .card-fade-enter-active {
   transition: all 0.4s ease;
 }
